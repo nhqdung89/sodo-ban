@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Sơ đồ bàn</title>
+
+<style>
+body { font-family: Arial; background:#f1f2f6; }
+
+/* KHUNG SƠ ĐỒ */
+#map {
+  position: relative;
+  width: 1000px;
+  height: 1434px;
+  margin:auto;
+  background:#fff;
+  border:2px solid #ccc;
+}
+
+/* BÀN */
+.table {
+  position:absolute;
+  width:75px;
+  height:55px;
+  border:2px solid #000;
+  border-radius:8px;
+  text-align:center;
+  font-size:16px;
+  font-weight:bold;
+  background:white;
+}
+.table.selected {
+  outline: 4px solid red;
+  box-shadow: 0 0 10px red;
+  z-index: 1000;
+}
+/* TRẠNG THÁI */
+.booked { background:#ffeaa7; }
+.vip { background:#ff7675; color:#fff; }
+.arrived { background:#55efc4; }
+
+.small { font-size:12px; }
+
+/* LABEL */
+.label {
+  position:absolute;
+  font-weight:bold;
+  font-size:22px;
+}
+
+/* IN A4 */
+@page {
+  size: A4 portrait;
+  margin: 5mm;
+}
+
+@media print {
+  body { margin: 0; }
+
+  #map {
+    transform: scale(0.95);
+    transform-origin: top left;
+  }
+}
+</style>
+
+</head>
+
+<body>
+<div style="position:fixed; top:10px; left:10px; z-index:999;">
+  <input 
+    type="text" 
+    id="searchInput" 
+    placeholder="Tìm tên / bàn / giờ..." 
+    oninput="searchTable()"
+    style="padding:8px; width:220px; font-size:14px;"
+  >
+  <button onclick="clearSearch()">Reset</button>
+</div>
+
+<button onclick="exportTables()" style="
+position:fixed;
+top:10px;
+right:10px;
+z-index:999;
+padding:10px 15px;
+font-size:16px;
+font-weight:bold;
+background:#2d3436;
+color:#fff;
+border:none;
+border-radius:6px;
+cursor:pointer;
+">
+Xuất tọa độ
+</button>
+
+<div id="map">
+
+<!-- CỬA CHÍNH -->
+<div class="label" style="top:10px; left:420px;">CỬA CHÍNH</div>
+
+<!-- CỬA PHỤ  -->
+<div class="label" style="top:880px; left:930px;">CỬA PHỤ</div>
+
+<!-- DJ -->
+<div class="label" style="top:1400px; left:450px;">DJ</div>
+
+<script>
+const tables = [
+  [1,1300,220],
+  [2,1300,320],
+  [3,1300,420],
+  [4,1300,520],
+  [15,1300,650],
+  [13,1300,750],
+  [14,1300,850],
+  [87,1370,650],
+  [66,1420,750],
+  [90,1370,850],
+  [73,1140,520],
+  [74,1040,520],
+  [58,1000,220],
+  [59,1070,220],
+  [60,1140,220],
+  [61,1210,220],
+  [54,1000,320],
+  [55,1070,320],
+  [56,1140,320],
+  [57,1210,320],
+  [50,1000,650],
+  [51,1070,650],
+  [52,1140,650],
+  [53,1210,650],
+  [46,1000,750],
+  [47,1070,750],
+  [48,1140,750],
+  [49,1210,750],
+  [42,1000,850],
+  [43,1070,850],
+  [44,1140,850],
+  [45,1210,850],
+  [39,730,220],
+  [40,800,220],
+  [41,870,220],
+  [36,730,360],
+  [37,800,360],
+  [38,870,360],
+  [32,659,650],
+  [33,729,650],
+  [34,800,650],
+  [35,870,650],
+  [28,659,750],
+  [29,730,750],
+  [30,800,750],
+  [31,870,750],
+  [24,659,850],
+  [25,730,850],
+  [26,800,850],
+  [27,870,850],
+  [75,560,320],
+  [65,530,820],
+  [69,480,520],
+  [68,330,520],
+  [8,430,220],
+  [12,430,320],
+  [19,430,720],
+  [23,430,820],
+  [7,360,220],
+  [11,360,320],
+  [18,360,720],
+  [22,360,820],
+  [6,290,220],
+  [10,290,320],
+  [17,290,720],
+  [21,290,820],
+  [5,220,220],
+  [9,220,320],
+  [16,220,720],
+  [20,220,820],
+  [89,380,100],
+];
+function moveGroup(list, offsetX = 0, offsetY = 0){
+  list.forEach(id=>{
+    const t = tables.find(x=>x[0]===id);
+    if(t){
+      t[2] += offsetX; // LEFT (trục ngang)
+      t[1] += offsetY; // TOP (trục dọc)
+    }
+  });
+}
+moveGroup(
+  tables.map(t => t[0]), // lấy toàn bộ id bàn
+  0,
+  -50 // kéo lên 50px
+);
+
+tables.forEach((t, i)=>{
+  const el = document.createElement("div");
+  el.className = "table";
+  el.style.top = t[1] + "px";
+  el.style.left = t[2] + "px";
+  el.dataset.ban = t[0];
+el.dataset.index = i;
+  el.innerHTML = t[0];
+  document.getElementById("map").appendChild(el);
+});
+</script>
+
+</div>
+
+<script>
+
+/* GOOGLE SHEET CSV */
+const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR49xWGLX2ht_XBVTrJiR9bDjPv4VTaI5ZHu42jguMuT1sPoQokKzGD-eblp5zCc1TZ4y4GX5Efhevm/pub?output=csv";
+
+function loadData() {
+  fetch(sheetURL)
+  .then(res => res.text())
+  .then(csv => {
+
+    document.querySelectorAll(".table").forEach(t=>{
+      t.className="table";
+      t.innerHTML = t.dataset.ban;
+    });
+
+    const rows = csv.split("\n").slice(1);
+
+    rows.forEach(r=>{
+      const [ban,gio,ten,khach,status] = r.split(",");
+
+      const el = document.querySelector(`[data-ban='${ban}']`);
+      if(!el) return;
+
+      el.classList.add("booked");
+      if(status==="VIP") el.classList.add("vip");
+      if(status==="ARRIVED") el.classList.add("arrived");
+
+      el.innerHTML = `
+        <div>${ban}</div>
+        <div class="small">${gio}</div>
+        <div class="small">${ten} (${khach})</div>
+      `;
+    });
+
+  });
+}
+
+loadData();
+setInterval(loadData, 10000);
+/* ===== STATE ===== */
+let selected = [];
+let history = [];
+let redoStack = [];
+
+let isDragging = false;
+let startX = 0;
+let startY = 0;
+
+/* ===== SAVE STATE ===== */
+function saveState(){
+  const snapshot = tables.map(t => [...t]);
+  history.push(snapshot);
+  if(history.length > 50) history.shift();
+  redoStack = [];
+}
+
+/* ===== RESTORE ===== */
+function restoreState(state){
+  state.forEach((t,i)=>{
+    tables[i][1] = t[1];
+    tables[i][2] = t[2];
+
+    const el = document.querySelector(`[data-index='${i}']`);
+    if(el){
+      el.style.top = t[1] + "px";
+      el.style.left = t[2] + "px";
+    }
+  });
+}
+
+/* ===== CLICK CHỌN ===== */
+document.addEventListener("mousedown", function(e){
+  if(!e.target.classList.contains("table")) return;
+
+  const el = e.target;
+
+  // Mac: dùng Command (metaKey)
+  const isMulti = e.metaKey;
+
+  // Nếu KHÔNG giữ Command → chọn 1 bàn
+  if(!isMulti){
+    selected.forEach(t => t.classList.remove("selected"));
+    selected = [];
+    
+    selected.push(el);
+    el.classList.add("selected");
+  } 
+  // Nếu giữ Command → multi select
+  else {
+    if(selected.includes(el)){
+      // nếu đã chọn rồi → bỏ chọn
+      el.classList.remove("selected");
+      selected = selected.filter(t => t !== el);
+    } else {
+      selected.push(el);
+      el.classList.add("selected");
+    }
+  }
+});
+
+/* ===== DRAG ===== */
+document.addEventListener("mousedown", function(e){
+  if(!e.target.classList.contains("table")) return;
+
+  if(!selected.includes(e.target)){
+    selected.forEach(t=>t.classList.remove("selected"));
+    selected = [e.target];
+    e.target.classList.add("selected");
+  }
+
+  saveState();
+
+  isDragging = true;
+  startX = e.clientX;
+  startY = e.clientY;
+});
+
+document.addEventListener("mousemove", function(e){
+  if(!isDragging) return;
+
+  const dx = e.clientX - startX;
+  const dy = e.clientY - startY;
+
+  selected.forEach(el=>{
+    const index = el.dataset.index;
+
+    tables[index][1] += dy;
+    tables[index][2] += dx;
+
+    el.style.top = tables[index][1] + "px";
+    el.style.left = tables[index][2] + "px";
+  });
+
+  startX = e.clientX;
+  startY = e.clientY;
+});
+
+document.addEventListener("mouseup", function(){
+  isDragging = false;
+});
+
+/* ===== MOVE BY KEY ===== */
+document.addEventListener("keydown", function(e){
+
+  if(selected.length === 0) return;
+
+  let dx = 0, dy = 0;
+
+  switch(e.key){
+    case "ArrowUp": dy = -10; break;
+    case "ArrowDown": dy = 10; break;
+    case "ArrowLeft": dx = -10; break;
+    case "ArrowRight": dx = 10; break;
+    default: return;
+  }
+
+  e.preventDefault();
+  saveState();
+
+  selected.forEach(el=>{
+    const index = el.dataset.index;
+
+    tables[index][1] += dy;
+    tables[index][2] += dx;
+
+    el.style.top = tables[index][1] + "px";
+    el.style.left = tables[index][2] + "px";
+  });
+});
+
+/* ===== UNDO / REDO ===== */
+document.addEventListener("keydown", function(e){
+
+  if((e.metaKey || e.ctrlKey) && e.key === "z"){
+    if(history.length === 0) return;
+
+    const current = tables.map(t => [...t]);
+    redoStack.push(current);
+
+    const prev = history.pop();
+    restoreState(prev);
+  }
+
+  if(
+    (e.metaKey && e.shiftKey && e.key === "z") ||
+    (e.ctrlKey && e.key === "y")
+  ){
+    if(redoStack.length === 0) return;
+
+    const current = tables.map(t => [...t]);
+    history.push(current);
+
+    const next = redoStack.pop();
+    restoreState(next);
+  }
+});
+/* ===== EXPORT TỌA ĐỘ ===== */
+function exportTables(){
+  let result = "const tables = [\n";
+
+  tables.forEach(t=>{
+    result += `  [${t[0]},${Math.round(t[1])},${Math.round(t[2])}],\n`;
+  });
+
+  result += "];";
+
+  console.log(result);
+  navigator.clipboard.writeText(result);
+
+  alert("Đã copy tọa độ!");
+}
+/* ===== SEARCH ===== */
+
+function normalizeTime(input){
+  input = input.toLowerCase().replace(/\s/g, "");
+
+  if(/^\d{1,2}h$/.test(input)){
+    let h = parseInt(input);
+    if(h < 12) h += 12;
+    return h + ":00";
+  }
+
+  if(/^\d{1,2}g\d{1,2}$/.test(input)){
+    let parts = input.split("g");
+    let h = parseInt(parts[0]);
+    let m = parts[1];
+    if(h < 12) h += 12;
+    return h + ":" + m.padStart(2, "0");
+  }
+
+  if(/^\d{1,2}:\d{1,2}$/.test(input)){
+    let parts = input.split(":");
+    let h = parseInt(parts[0]);
+    let m = parts[1];
+    if(h < 12) h += 12;
+    return h + ":" + m.padStart(2, "0");
+  }
+
+  return input;
+}
+function searchTable(){
+  let keyword = document.getElementById("searchInput").value.toLowerCase().trim();
+
+  // Nếu rỗng → reset toàn bộ
+  if(keyword === ""){
+    clearSearch();
+    return;
+  }
+
+  const normalized = normalizeTime(keyword);
+
+  document.querySelectorAll(".table").forEach(el => {
+    const text = el.innerText.toLowerCase();
+
+    if(text.includes(keyword) || text.includes(normalized)){
+      el.style.opacity = "1";
+      el.style.outline = "4px solid yellow";
+    } else {
+      el.style.opacity = "0.2";
+      el.style.outline = "";
+    }
+  });
+}
+function clearSearch(){
+  document.getElementById("searchInput").value = "";
+
+  document.querySelectorAll(".table").forEach(el => {
+    el.style.opacity = "1";
+    el.style.outline = ""; // ❗ reset viền vàng
+  });
+}
+</script>
+
+</body>
+</html>
